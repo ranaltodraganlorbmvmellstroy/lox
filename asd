@@ -1,52 +1,41 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <cstring>
 
 int main() {
-    // Выделяем блок памяти. 
-    // Нам нужно 5 строк по 16 байт, чтобы арт красиво смотрелся 
-    // в классическом hex-дампе (который обычно выводит 16 байт в строке).
-    size_t size = 16 * 5; 
-    char *art_buffer = (char *)malloc(size);
+    // Выделяем память. 5 строк по 16 байт = 80 байт.
+    // Это гарантирует, что в стандартном hex-редакторе арт не "поедет".
+    const size_t ART_SIZE = 80;
+    unsigned char* memory_canvas = new unsigned char[ART_SIZE];
 
-    if (art_buffer == NULL) {
-        printf("Ошибка выделения памяти\n");
-        return 1;
-    }
+    // Шестнадцатеричный паттерн, рисующий "HSE" (символами '*' и пробелами)
+    // Каждая строка ровно 16 байт (0x10)
+    const unsigned char hex_payload[ART_SIZE] = {
+        // H   H SSS EEEEE (Row 1)
+        0x2A, 0x20, 0x20, 0x20, 0x2A, 0x20, 0x2A, 0x2A, 0x2A, 0x20, 0x2A, 0x2A, 0x2A, 0x2A, 0x2A, 0x20,
+        // H   H S   E     (Row 2)
+        0x2A, 0x20, 0x20, 0x20, 0x2A, 0x20, 0x2A, 0x20, 0x20, 0x20, 0x2A, 0x20, 0x20, 0x20, 0x20, 0x20,
+        // HHHHH SSS EEEE  (Row 3)
+        0x2A, 0x2A, 0x2A, 0x2A, 0x2A, 0x20, 0x2A, 0x2A, 0x2A, 0x20, 0x2A, 0x2A, 0x2A, 0x2A, 0x20, 0x20,
+        // H   H   S E     (Row 4)
+        0x2A, 0x20, 0x20, 0x20, 0x2A, 0x20, 0x20, 0x20, 0x2A, 0x20, 0x2A, 0x20, 0x20, 0x20, 0x20, 0x20,
+        // H   H SSS EEEEE (Row 5)
+        0x2A, 0x20, 0x20, 0x20, 0x2A, 0x20, 0x2A, 0x2A, 0x2A, 0x20, 0x2A, 0x2A, 0x2A, 0x2A, 0x2A, 0x20
+    };
 
-    // 1. Заполняем весь буфер пробелами (0x20) - это наш "фон"
-    memset(art_buffer, 0x20, size);
+    // Аккуратно заполняем выделенную память нашим паттерном
+    std::memcpy(memory_canvas, hex_payload, ART_SIZE);
 
-    // 2. Рисуем букву 'H' символами 'X' (0x58).
-    // Мы знаем, что стандартный hex-dump показывает 16 байт в строке.
-    // Поэтому смещение на +16 переводит нас на следующую "строку" в выводе дампа.
+    std::cout << "[+] Память выделена по адресу: " << (void*)memory_canvas << std::endl;
+    std::cout << "[+] Шестнадцатеричный арт загружен." << std::endl;
+    std::cout << "[!] Инициирую Segmentation fault для сброса core dump..." << std::endl;
 
-    // Строка 1: X   X (индексы 0 и 4)
-    art_buffer[0] = 0x58; art_buffer[4] = 0x58;
-    
-    // Строка 2: X   X (индексы 16 и 20)
-    art_buffer[16] = 0x58; art_buffer[20] = 0x58;
-    
-    // Строка 3: XXXXX (индексы с 32 по 36)
-    art_buffer[32] = 0x58; art_buffer[33] = 0x58; art_buffer[34] = 0x58; 
-    art_buffer[35] = 0x58; art_buffer[36] = 0x58;
-    
-    // Строка 4: X   X (индексы 48 и 52)
-    art_buffer[48] = 0x58; art_buffer[52] = 0x58;
-    
-    // Строка 5: X   X (индексы 64 и 68)
-    art_buffer[64] = 0x58; art_buffer[68] = 0x58;
+    // Намеренно провоцируем Segfault. 
+    // Делаем указатель volatile, чтобы компилятор не вырезал этот код при оптимизации (-O2/-O3).
+    volatile int* crash_pointer = nullptr;
+    *crash_pointer = 0xDEADBEEF; 
 
-    // Выводим адрес в памяти, чтобы отладчику было проще его найти
-    printf("Искусство загружено в память по адресу: %p\n", (void*)art_buffer);
-    printf("Инициирую Segmentation Fault...\n");
-
-    // 3. Намеренно провоцируем Segmentation fault (обращение по нулевому указателю)
-    // Это заставит операционную систему прервать программу и (при правильных настройках) создать core dump.
-    int *crash_ptr = NULL;
-    *crash_ptr = 42; 
-
-    // Этот код никогда не выполнится, создавая еще и утечку памяти
-    free(art_buffer);
+    // До этого места выполнение никогда не дойдет.
+    // Утечка memory_canvas останется в дампе.
+    delete[] memory_canvas; 
     return 0;
 }
