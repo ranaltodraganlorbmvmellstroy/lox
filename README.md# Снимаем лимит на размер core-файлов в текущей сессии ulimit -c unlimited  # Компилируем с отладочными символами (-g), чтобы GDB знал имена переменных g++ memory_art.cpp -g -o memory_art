@@ -1,0 +1,13 @@
+# Снимаем лимит на размер core-файлов в текущей сессии
+ulimit -c unlimited
+
+# Компилируем с отладочными символами (-g), чтобы GDB знал имена переменных
+g++ memory_art.cpp -g -o memory_art
+
+./memory_art
+
+gdb ./memory_art core
+
+(gdb) x/5s memory_canvas
+
+* * *** ***** * * * * ***** *** **** * * * * * * *** ***** ```
